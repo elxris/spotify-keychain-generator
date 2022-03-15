@@ -265,24 +265,27 @@ const handlerGetSTL = async (req: Request) => {
   }
 };
 
-const handler = (req: Request) => {
+const handler = async (req: Request) => {
   const url = new URL(req.url);
+  let response;
   if (req.method === "OPTIONS") {
-    return new Response(undefined, {
+    response = new Response(undefined, {
       status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      },
     });
   } else if (url.pathname.split("/").at(1) === "playlist") {
-    return handlerGeneratePlaylist(req);
+    response = await handlerGeneratePlaylist(req);
   } else if (url.pathname.split("/").at(1) === "stl") {
-    return handlerGetSTL(req);
+    response = await handlerGetSTL(req);
+  } else {
+    return new Response("404: Not found", {
+      status: 404,
+    });
   }
-  return new Response("404: Not found", {
-    status: 404,
-  });
+
+  // CORS
+  response.headers.set("Access-Control-Allow-Origin", "*");
+  response.headers.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  return response;
 };
 
 if (await exists("./cert.pem")) {
