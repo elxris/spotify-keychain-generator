@@ -98,26 +98,32 @@ const generateSTL = async (songUri: string) => {
   console.debug(`stl ${songUri} calling openscad`);
   await new Promise((resolve, reject) => {
     let stdout = "";
-    spawn(Deno.env.get("OPENSCAD_PATH") || `/usr/local/bin/openscad`, [
-      "./spcode.scad",
-      "--export-format",
-      "binstl",
-      "-o",
-      `./stl/${songUri}.stl`,
-      "-D",
-      `svgPath="${svgPath}"`,
-    ])
-      .on("close", (code) => {
-        if (code !== 0) {
-          reject(stdout);
-        } else {
-          resolve(0);
-        }
-      })
-      .on("data", (data) => {
-        stdout += data.toString();
-      })
-      .on("error", (err) => reject(err));
+    const child = spawn(
+      Deno.env.get("OPENSCAD_PATH") || `/usr/local/bin/openscad`,
+      [
+        "./spcode.scad",
+        "--export-format",
+        "binstl",
+        "-o",
+        `./stl/${songUri}.stl`,
+        "-D",
+        `svgPath="${svgPath}"`,
+      ]
+    );
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(stdout);
+      } else {
+        resolve(0);
+      }
+    });
+    child.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      stdout += data.toString();
+    });
+    child.on("error", (err) => reject(err));
   });
   console.debug(`stl ${songUri} generated`);
 };
