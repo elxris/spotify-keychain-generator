@@ -98,10 +98,12 @@ const generateSTL = async (songUri: string) => {
   console.debug(`stl ${songUri} calling openscad`);
   await new Promise((resolve) => {
     spawn(Deno.env.get('OPENSCAD_PATH') || `/usr/local/bin/openscad`, [
-      "./spcode.scad",
-      "-o",
+      './spcode.scad',
+      '--export-format',
+      'binstl',
+      '-o',
       `./stl/${songUri}.stl`,
-      "-D",
+      '-D',
       `svgPath="${svgPath}"`,
     ]).on("close", resolve);
   });
@@ -195,7 +197,7 @@ const handlerGeneratePlaylist = async (req: Request) => {
     return new Response(
       JSON.stringify({
         status: "ok",
-        data: { name, tracks: tracks.slice(start, end) },
+        data: { name, tracks: tracks.slice(start, end), size: tracks.length },
       }),
       {
         status: 200,
@@ -223,8 +225,9 @@ const handlerGetSTL = async (req: Request) => {
     if (!uri?.endsWith(".stl") || uri?.slice(0, -4) === "")
       throw new Error("download uri invalid");
     const file = await Deno.open(`./stl/${uri.slice(0, -4)}.stl`);
-    return new Response(file.readable, {
+    return new Response(file.readable.pipeThrough(new CompressionStream('gzip')), {
       headers: {
+        "Content-Encoding": 'gzip',
         "Content-Disposition": `attachment; filename="${uri}"`,
         "Cache-Control": "public, max-age=86400",
         "CDN-Cache-Control": "public, max-age=604800",
