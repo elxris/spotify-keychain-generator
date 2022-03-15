@@ -226,8 +226,8 @@ const handlerGetSTL = async (req: Request) => {
     return new Response(file.readable, {
       headers: {
         "Content-Disposition": `attachment; filename="${uri}"`,
-        "Cache-Control": "max-age=86400",
-        "CDN-Cache-Control": "max-age=604800",
+        "Cache-Control": "public, max-age=86400",
+        "CDN-Cache-Control": "public, max-age=604800",
       },
     });
   } catch (e) {
