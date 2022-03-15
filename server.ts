@@ -219,7 +219,7 @@ const handlerGeneratePlaylist = async (req: Request) => {
       }
     );
   } catch (e) {
-    console.warn(e);
+    console.error(e);
     return new Response(JSON.stringify({ error: "Unexpected error" }), {
       status: e.status || 400,
       headers: {
@@ -249,7 +249,7 @@ const handlerGetSTL = async (req: Request) => {
       }
     );
   } catch (e) {
-    console.warn(e);
+    console.error(e);
     return new Response(JSON.stringify({ error: "Unexpected error" }), {
       status: e.status || 400,
       headers: {
