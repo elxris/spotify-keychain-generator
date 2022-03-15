@@ -97,7 +97,7 @@ const generateSTL = async (songUri: string) => {
   const svgPath = `./svg/${songUri}.svg`;
   console.debug(`stl ${songUri} calling openscad`);
   await new Promise((resolve) => {
-    spawn(`/usr/local/bin/openscad`, [
+    spawn(Deno.env.get('OPENSCAD_PATH') || `/usr/local/bin/openscad`, [
       "./spcode.scad",
       "-o",
       `./stl/${songUri}.stl`,
