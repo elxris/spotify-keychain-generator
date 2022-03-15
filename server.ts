@@ -267,7 +267,15 @@ const handlerGetSTL = async (req: Request) => {
 
 const handler = (req: Request) => {
   const url = new URL(req.url);
-  if (url.pathname.split("/").at(1) === "playlist") {
+  if (req.method === "OPTIONS") {
+    return new Response(undefined, {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+      },
+    });
+  } else if (url.pathname.split("/").at(1) === "playlist") {
     return handlerGeneratePlaylist(req);
   } else if (url.pathname.split("/").at(1) === "stl") {
     return handlerGetSTL(req);
