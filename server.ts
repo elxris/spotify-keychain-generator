@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.129.0/http/server.ts";
+import { serve, serveTls } from "https://deno.land/std@0.129.0/http/server.ts";
 import { spawn } from "https://deno.land/std@0.129.0/node/child_process.ts";
 import TTL from "https://deno.land/x/ttl@1.0.1/mod.ts";
 import PQueue from "https://deno.land/x/p_queue@1.0.1/mod.ts";
@@ -61,7 +61,7 @@ const existsSVG = async (songUri: string) => {
 };
 
 const downloadSVG = async (songUri: string) => {
-  if(await existsSVG(songUri)) return;
+  if (await existsSVG(songUri)) return;
 
   const svgReq = await fetch(
     `https://scannables.scdn.co/uri/plain/svg/000000/white/640/spotify:track:${songUri}`
@@ -89,7 +89,7 @@ const existsSTL = async (songUri: string) => {
     console.debug(`stl ${songUri} exists, skipping`);
     return true;
   } else return false;
-}
+};
 
 const generateSTL = async (songUri: string) => {
   if (await existsSTL(songUri)) return;
@@ -161,14 +161,14 @@ const getPlaylistInfo = async (playlistUri: string) => {
   return playlistInfo;
 };
 
-const handler = async (req: Request) => {
+const handlerGeneratePlaylist = async (req: Request) => {
   try {
     const { playlistUri, start = 0, end = 3 } = await req?.json();
 
     if (start < 0 || end < 0 || end - start > 3)
       throw new Error("limits abuse");
 
-    console.debug('new request', playlistUri);
+    console.debug("new request", playlistUri);
 
     const { tracks, name } = await playlistQueue.add(() =>
       getPlaylistInfo(playlistUri)
@@ -215,4 +215,50 @@ const handler = async (req: Request) => {
   }
 };
 
-serve(handler);
+const handlerGetSTL = async (req: Request) => {
+  try {
+    const url = new URL(req.url);
+    const uri = url.pathname.split("/").at(2);
+    console.log("new file request", uri);
+    if (!uri?.endsWith(".stl") || uri?.slice(0, -4) === "")
+      throw new Error("download uri invalid");
+    const file = await Deno.open(`./stl/${uri.slice(0, -4)}.stl`);
+    return new Response(file.readable, {
+      headers: {
+        "Content-Disposition": `attachment; filename="${uri}"`,
+        "Cache-Control": "max-age=86400",
+        "CDN-Cache-Control": "max-age=604800",
+      },
+    });
+  } catch (e) {
+    console.warn(e);
+    return new Response(JSON.stringify({ error: "Unexpected error" }), {
+      status: e.status || 400,
+      headers: {
+        "content-type": "text/plain",
+      },
+    });
+  }
+};
+
+const handler = (req: Request) => {
+  const url = new URL(req.url);
+  if (url.pathname.split("/").at(1) === "playlist") {
+    return handlerGeneratePlaylist(req);
+  } else if (url.pathname.split("/").at(1) === "stl") {
+    return handlerGetSTL(req);
+  }
+  return new Response("404: Not found", {
+    status: 404,
+  });
+};
+
+if (await exists("./cert.pem")) {
+  serveTls(handler, {
+    port: 443,
+    certFile: "./cert.pem",
+    keyFile: "./key.pem",
+  });
+} else {
+  serve(handler);
+}
