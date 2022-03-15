@@ -96,16 +96,28 @@ const generateSTL = async (songUri: string) => {
 
   const svgPath = `./svg/${songUri}.svg`;
   console.debug(`stl ${songUri} calling openscad`);
-  await new Promise((resolve) => {
-    spawn(Deno.env.get('OPENSCAD_PATH') || `/usr/local/bin/openscad`, [
-      './spcode.scad',
-      '--export-format',
-      'binstl',
-      '-o',
+  await new Promise((resolve, reject) => {
+    let stdout = "";
+    spawn(Deno.env.get("OPENSCAD_PATH") || `/usr/local/bin/openscad`, [
+      "./spcode.scad",
+      "--export-format",
+      "binstl",
+      "-o",
       `./stl/${songUri}.stl`,
-      '-D',
+      "-D",
       `svgPath="${svgPath}"`,
-    ]).on("close", resolve);
+    ])
+      .on("close", (code) => {
+        if (code !== 0) {
+          reject(stdout);
+        } else {
+          resolve(0);
+        }
+      })
+      .on("data", (data) => {
+        stdout += data.toString();
+      })
+      .on("error", (err) => reject(err));
   });
   console.debug(`stl ${songUri} generated`);
 };
@@ -225,14 +237,17 @@ const handlerGetSTL = async (req: Request) => {
     if (!uri?.endsWith(".stl") || uri?.slice(0, -4) === "")
       throw new Error("download uri invalid");
     const file = await Deno.open(`./stl/${uri.slice(0, -4)}.stl`);
-    return new Response(file.readable.pipeThrough(new CompressionStream('gzip')), {
-      headers: {
-        "Content-Encoding": 'gzip',
-        "Content-Disposition": `attachment; filename="${uri}"`,
-        "Cache-Control": "public, max-age=86400",
-        "CDN-Cache-Control": "public, max-age=604800",
-      },
-    });
+    return new Response(
+      file.readable.pipeThrough(new CompressionStream("gzip")),
+      {
+        headers: {
+          "Content-Encoding": "gzip",
+          "Content-Disposition": `attachment; filename="${uri}"`,
+          "Cache-Control": "public, max-age=86400",
+          "CDN-Cache-Control": "public, max-age=604800",
+        },
+      }
+    );
   } catch (e) {
     console.warn(e);
     return new Response(JSON.stringify({ error: "Unexpected error" }), {
